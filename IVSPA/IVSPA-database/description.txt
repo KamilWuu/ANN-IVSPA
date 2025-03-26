@@ -1,0 +1,10 @@
+0 -> 20 km/h
+1 -> 30 km/h
+2 -> 50 km/h
+3 -> 60 km/h
+10 -> no overtaking for trucks
+17 -> no entry
+20 -> dangerous right turn
+33 -> mandatory right turn
+38 -> keep right (white arrow right on blue)
+39 -> keep left (white arrow left on blue)
