@@ -8,6 +8,7 @@ from sklearn import svm
 from sklearn.model_selection import GridSearchCV 
 from sklearn.metrics import accuracy_score 
 from sklearn.metrics import classification_report
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 
 import time
 from datetime import datetime
@@ -37,7 +38,7 @@ def load_data_from_folder(path, categories):
         for img in os.listdir(folder_path):
             if img.endswith(".ppm"):
                 img_array = imread(os.path.join(folder_path, img))
-                img_resized = resize(img_array, (50, 50, 3))
+                img_resized = resize(img_array, (15, 15, 3))
                 data.append(img_resized.flatten())
                 labels.append(categories.index(i))
     return np.array(data), np.array(labels)
@@ -110,3 +111,13 @@ print(f"Classification report saved as: {filename}")
 print("Contents of report:")
 
 print(report)
+
+# Generate confusion matrix
+cm = confusion_matrix(y_test, y_pred)
+
+# Plot the confusion matrix
+disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=Categories)
+disp.plot(cmap='Greens')
+plt.title("Confusion Matrix")
+plt.tight_layout()
+plt.show()
