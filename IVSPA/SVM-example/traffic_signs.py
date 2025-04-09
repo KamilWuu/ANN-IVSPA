@@ -6,7 +6,6 @@ import numpy as np
 import matplotlib.pyplot as plt 
 from sklearn import svm 
 from sklearn.model_selection import GridSearchCV 
-from sklearn.model_selection import train_test_split 
 from sklearn.metrics import accuracy_score 
 from sklearn.metrics import classification_report
 
@@ -27,40 +26,33 @@ def get_categories(file_location):
 
 datadir='../IVSPA-database/'
 Categories=get_categories(datadir+"description.txt") 
+print("Categories read from description file:")
 print(Categories)
-flat_data_arr=[] #input array 
-target_arr=[] #output array 
-#path which contains all the categories of images 
-for i in Categories: 
-    print(f'loading... category : {i}') 
-    path=os.path.join(datadir,i) 
-    print(f"image path: {path}")
-    for img in os.listdir(path):
-        if img.endswith(".ppm"): 
-            img_array=imread(os.path.join(path,img)) 
-            img_resized=resize(img_array,(50,50,3)) 
-            flat_data_arr.append(img_resized.flatten()) 
-            target_arr.append(Categories.index(i)) 
-    print(f'loaded category:{i} successfully') 
-flat_data=np.array(flat_data_arr) 
-target=np.array(target_arr)
 
+def load_data_from_folder(path, categories):
+    data = []
+    labels = []
+    for i in categories:
+        folder_path = os.path.join(path, i)
+        for img in os.listdir(folder_path):
+            if img.endswith(".ppm"):
+                img_array = imread(os.path.join(folder_path, img))
+                img_resized = resize(img_array, (50, 50, 3))
+                data.append(img_resized.flatten())
+                labels.append(categories.index(i))
+    return np.array(data), np.array(labels)
 
-#dataframe 
-df=pd.DataFrame(flat_data) 
-df['Target']=target 
-df.shape
+# Load training data
+train_path = os.path.join(datadir, "Training")
+x_train, y_train = load_data_from_folder(train_path, Categories)
 
+# Load validation data
+validation_path = os.path.join(datadir, "Validation")
+x_validation, y_validation = load_data_from_folder(validation_path, Categories)
 
-#input data 
-x=df.iloc[:,:-1] 
-#output data 
-y=df.iloc[:,-1]
-
-# Splitting the data into training and testing sets 
-x_train,x_test,y_train,y_test=train_test_split(x,y,test_size=0.20, 
-                                            random_state=77, 
-                                            stratify=y) 
+# Load testing data
+test_path = os.path.join(datadir, "Test")
+x_test, y_test = load_data_from_folder(test_path, Categories)
 
 #           Grid Search -- disabled for now
 # Defining the parameters grid for GridSearchCV
