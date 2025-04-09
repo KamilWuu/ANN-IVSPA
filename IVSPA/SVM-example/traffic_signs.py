@@ -62,17 +62,20 @@ x_train,x_test,y_train,y_test=train_test_split(x,y,test_size=0.20,
                                             random_state=77, 
                                             stratify=y) 
 
-# Defining the parameters grid for GridSearchCV 
-param_grid={'C':[0.1,1,10,100], 
-            'gamma':[0.0001,0.001,0.1,1], 
-            'kernel':['linear']} 
-            # 'kernel':['rbf','poly']} 
+#           Grid Search -- disabled for now
+# Defining the parameters grid for GridSearchCV
+# param_grid={'C':[0.1,1,10,100], 
+#             'gamma':[0.0001,0.001,0.1,1], 
+#             'kernel':['linear']} 
+#             # 'kernel':['rbf','poly']} 
 
 # Creating a support vector classifier 
-svc=svm.SVC(probability=True) 
+# svc=svm.SVC(probability=True) 
 
 # Creating a model using GridSearchCV with the parameters grid 
-model=GridSearchCV(svc,param_grid, n_jobs=-1)
+# model=GridSearchCV(svc,param_grid, n_jobs=-1)
+
+model = svm.SVC(C=0.1, gamma=0.0001, kernel='linear', probability=True)
 
 print("\n     Starting training!")
 start_time = time.time()
@@ -86,8 +89,8 @@ elapsed_time = end_time - start_time
 print(f"Training finished! Time elapsed in training: {round(elapsed_time, 1)} seconds")
 
 # Print the best parameters found by GridSearchCV
-print("Best parameters found:")
-print(model.best_params_)
+# print("Best parameters found:")
+# print(model.best_params_)
 
 print("\n     Starting testing!")
 start_time = time.time()
