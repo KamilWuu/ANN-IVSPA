@@ -38,7 +38,7 @@ for i in Categories:
     for img in os.listdir(path):
         if img.endswith(".ppm"): 
             img_array=imread(os.path.join(path,img)) 
-            img_resized=resize(img_array,(150,150,3)) 
+            img_resized=resize(img_array,(50,50,3)) 
             flat_data_arr.append(img_resized.flatten()) 
             target_arr.append(Categories.index(i)) 
     print(f'loaded category:{i} successfully') 
@@ -85,6 +85,9 @@ end_time = time.time()
 elapsed_time = end_time - start_time
 print(f"Training finished! Time elapsed in training: {round(elapsed_time, 1)} seconds")
 
+# Print the best parameters found by GridSearchCV
+print("Best parameters found:")
+print(model.best_params_)
 
 print("\n     Starting testing!")
 start_time = time.time()
@@ -105,7 +108,7 @@ print(f"The model is {accuracy*100}% accurate")
 
 report = classification_report(y_test, y_pred, target_names=Categories)
 timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-filename = f"classification_report_{timestamp}.txt"
+filename = f"reports/classification_report_{timestamp}.txt"
 with open(filename, "w") as file:
     file.write(report)
 print(f"Classification report saved as: {filename}")
