@@ -25,7 +25,7 @@ def get_categories(file_location):
         print(f"Error: The file '{file_location}' was not found.")
         return []
 
-datadir='../IVSPA-database/'
+datadir='../IVSPA-database/database_1000_photos/'
 Categories=get_categories(datadir+"description.txt") 
 print("Categories read from description file:")
 print(Categories)
