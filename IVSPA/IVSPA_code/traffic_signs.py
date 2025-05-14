@@ -12,8 +12,9 @@ from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 
 import time
 from datetime import datetime
+import cpuinfo
 
-
+photo_dimension_after_resizing = 15
 
 def get_categories(file_location):
     try:
@@ -38,7 +39,8 @@ def load_data_from_folder(path, categories):
         for img in os.listdir(folder_path):
             if img.endswith(".ppm"):
                 img_array = imread(os.path.join(folder_path, img))
-                img_resized = resize(img_array, (15, 15, 3))
+                img_resized = resize(img_array, (photo_dimension_after_resizing,
+                                                 photo_dimension_after_resizing, 3))
                 data.append(img_resized.flatten())
                 labels.append(categories.index(i))
     return np.array(data), np.array(labels)
@@ -68,7 +70,16 @@ x_test, y_test = load_data_from_folder(test_path, Categories)
 # Creating a model using GridSearchCV with the parameters grid 
 # model=GridSearchCV(svc,param_grid, n_jobs=-1)
 
-model = svm.SVC(C=0.1, gamma=0.0001, kernel='linear', probability=True)
+SVM_parameters_dict = {
+    "C": 0.1,
+    "gamma": 0.0001,
+    "kernel": "linear",
+    "probability": False,
+}
+
+model = svm.SVC(C=SVM_parameters_dict["C"], gamma=SVM_parameters_dict["gamma"],
+                kernel=SVM_parameters_dict["kernel"],
+                probability=SVM_parameters_dict["probability"])
 
 print("\n     Starting training!")
 start_time = time.time()
@@ -78,8 +89,8 @@ start_time = time.time()
 model.fit(x_train,y_train)
 
 end_time = time.time()
-elapsed_time = end_time - start_time
-print(f"Training finished! Time elapsed in training: {round(elapsed_time, 1)} seconds")
+training_elapsed_time = end_time - start_time
+print(f"Training finished! Time elapsed in training: {round(training_elapsed_time, 1)} seconds")
 
 # Print the best parameters found by GridSearchCV
 # print("Best parameters found:")
@@ -92,8 +103,8 @@ start_time = time.time()
 y_pred = model.predict(x_test) 
 
 end_time = time.time()
-elapsed_time = end_time - start_time
-print(f"Testing finished! Time elapsed in testing: {round(elapsed_time, 1)} seconds\n")
+testing_elapsed_time = end_time - start_time
+print(f"Testing finished! Time elapsed in testing: {round(testing_elapsed_time, 1)} seconds\n")
 
 # Calculating the accuracy of the model 
 accuracy = accuracy_score(y_pred, y_test) 
@@ -106,6 +117,11 @@ report = classification_report(y_test, y_pred, target_names=Categories)
 timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 filename = f"reports/classification_report_{timestamp}.txt"
 with open(filename, "w") as file:
+    file.write(f"Width and heights of the images after resizing: {photo_dimension_after_resizing}px\n")
+    file.write(f"SVM parameters: {SVM_parameters_dict}\n")
+    file.write(f"Model run on processor: {cpuinfo.get_cpu_info()['brand_raw']}\n")
+    file.write(f"Time elapsed in training: {round(training_elapsed_time, 1)} seconds\n")
+    file.write(f"Time elapsed in testing: {round(testing_elapsed_time, 1)} seconds\n\n")
     file.write(report)
 print(f"Classification report saved as: {filename}")
 print("Contents of report:")

@@ -1,0 +1,18 @@
+Width and heights of the images after resizing: 15px
+SVM parameters: {'C': 0.1, 'gamma': 0.0001, 'kernel': 'linear', 'probability': False}
+              precision    recall  f1-score   support
+
+           1       0.88      0.81      0.84       150
+           2       0.92      0.71      0.80       150
+           4       0.85      0.91      0.88       150
+           5       0.68      0.93      0.79       150
+           9       0.99      0.94      0.96       150
+          10       0.97      0.96      0.96       150
+          12       0.97      0.97      0.97       150
+          13       0.99      0.95      0.97       150
+          25       0.95      0.96      0.96       150
+          38       1.00      0.99      0.99       150
+
+    accuracy                           0.91      1500
+   macro avg       0.92      0.91      0.91      1500
+weighted avg       0.92      0.91      0.91      1500
