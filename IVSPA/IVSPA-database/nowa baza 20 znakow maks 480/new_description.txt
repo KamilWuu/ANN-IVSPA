@@ -1,0 +1,20 @@
+1 -> 20 km/h					= 0
+2 -> 30 km/h					= 1
+3 -> 40 km/h
+4 -> 50 km/h					= 2
+5 -> 60 km/h					= 3
+7 -> 100 km/h
+8 -> 120 km/h
+9 -> no overtaking for trucks			= 4
+10 -> no entry					= 5
+11 -> skrzyzowanie z pierwszenstwem (taki czarny krzyzyk z strzalkami)
+12 -> dangerous right turn			= 6
+13 -> ustap pierwszenstwa			= 7
+14 -> stop
+17 -> zakaz wjazdu
+18 -> !
+25 -> keep right (white arrow right on blue)	= 8
+31 -> jeleń 
+33 -> manadatory right turn
+35 -> strzalka prosto
+38 -> keep left (white arrow left on blue)	= 9
