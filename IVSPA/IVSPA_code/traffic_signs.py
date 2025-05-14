@@ -15,7 +15,7 @@ from datetime import datetime
 import cpuinfo
 import os
 
-photo_dimension_after_resizing = 15
+photo_dimension_after_resizing = 20
 
 def get_categories(file_location):
     try:
@@ -27,8 +27,8 @@ def get_categories(file_location):
         print(f"Error: The file '{file_location}' was not found.")
         return []
 
-datadir='../IVSPA-database/database_1000_photos/'
-Categories=get_categories(datadir+"description.txt") 
+datadir='../IVSPA-database/nowa baza 20 znakow maks 480/database_480_photos/'
+Categories=get_categories("../IVSPA-database/nowa baza 20 znakow maks 480/new_description.txt") 
 print("Categories read from description file:")
 print(Categories)
 
