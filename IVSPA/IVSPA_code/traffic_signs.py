@@ -13,6 +13,7 @@ from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 import time
 from datetime import datetime
 import cpuinfo
+import os
 
 photo_dimension_after_resizing = 15
 
@@ -115,7 +116,9 @@ print(f"The model is {accuracy*100}% accurate")
 
 report = classification_report(y_test, y_pred, target_names=Categories)
 timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-filename = f"reports/classification_report_{timestamp}.txt"
+report_directory = f"reports/{timestamp}"
+os.makedirs(report_directory, exist_ok=True)  # Create the folder if it doesn't exist
+filename = f"{report_directory}/classification_report_{timestamp}.txt"
 with open(filename, "w") as file:
     file.write(f"Width and heights of the images after resizing: {photo_dimension_after_resizing}px\n")
     file.write(f"SVM parameters: {SVM_parameters_dict}\n")
@@ -136,4 +139,9 @@ disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=Categories)
 disp.plot(cmap='Greens')
 plt.title("Confusion Matrix")
 plt.tight_layout()
+
+# Save the figure
+conf_matrix_path = f"{report_directory}/confusion_matrix_{timestamp}.png"
+plt.savefig(conf_matrix_path)
+
 plt.show()
