@@ -58,33 +58,21 @@ x_validation, y_validation = load_data_from_folder(validation_path, Categories)
 test_path = os.path.join(datadir, "Test")
 x_test, y_test = load_data_from_folder(test_path, Categories)
 
-#           Grid Search -- disabled for now
+# Grid Search
 # Defining the parameters grid for GridSearchCV
-# param_grid={'C':[0.1,1,10,100], 
-#             'gamma':[0.0001,0.001,0.1,1], 
-#             'kernel':['linear']} 
-#             # 'kernel':['rbf','poly']} 
+param_grid={'C':[0.1], 
+            'gamma':[0.0001], 
+            'kernel':['linear']} 
+            # 'kernel':['rbf','poly']} 
 
 # Creating a support vector classifier 
-# svc=svm.SVC(probability=True) 
+svc=svm.SVC(probability=True) 
 
 # Creating a model using GridSearchCV with the parameters grid 
-# model=GridSearchCV(svc,param_grid, n_jobs=-1)
-
-SVM_parameters_dict = {
-    "C": 0.1,
-    "gamma": 0.0001,
-    "kernel": "linear",
-    "probability": False,
-}
-
-model = svm.SVC(C=SVM_parameters_dict["C"], gamma=SVM_parameters_dict["gamma"],
-                kernel=SVM_parameters_dict["kernel"],
-                probability=SVM_parameters_dict["probability"])
+model=GridSearchCV(svc,param_grid, n_jobs=-1)
 
 print("\n     Starting training!")
 start_time = time.time()
-
 
 # Training the model using the training data 
 model.fit(x_train,y_train)
@@ -94,8 +82,8 @@ training_elapsed_time = end_time - start_time
 print(f"Training finished! Time elapsed in training: {round(training_elapsed_time, 1)} seconds")
 
 # Print the best parameters found by GridSearchCV
-# print("Best parameters found:")
-# print(model.best_params_)
+print("Best parameters found:")
+print(model.best_params_)
 
 print("\n     Starting testing!")
 start_time = time.time()
@@ -121,7 +109,7 @@ os.makedirs(report_directory, exist_ok=True)  # Create the folder if it doesn't 
 filename = f"{report_directory}/classification_report_{timestamp}.txt"
 with open(filename, "w") as file:
     file.write(f"Width and heights of the images after resizing: {photo_dimension_after_resizing}px\n")
-    file.write(f"SVM parameters: {SVM_parameters_dict}\n")
+    file.write(f"SVM parameters: {model.best_params_}\n")
     file.write(f"Model run on processor: {cpuinfo.get_cpu_info()['brand_raw']}\n")
     file.write(f"Time elapsed in training: {round(training_elapsed_time, 1)} seconds\n")
     file.write(f"Time elapsed in testing: {round(testing_elapsed_time, 1)} seconds\n\n")
