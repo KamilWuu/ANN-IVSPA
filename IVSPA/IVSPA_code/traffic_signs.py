@@ -5,15 +5,12 @@ from skimage.io import imread
 import numpy as np 
 import matplotlib.pyplot as plt 
 from sklearn import svm 
-from sklearn.model_selection import GridSearchCV 
-from sklearn.metrics import accuracy_score 
-from sklearn.metrics import classification_report
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, ConfusionMatrixDisplay, f1_score
 
 import time
 from datetime import datetime
 import cpuinfo
-import os
+import itertools
 
 photo_dimension_after_resizing = 20
 
@@ -46,90 +43,92 @@ def load_data_from_folder(path, categories):
                 labels.append(categories.index(i))
     return np.array(data), np.array(labels)
 
-# Load training data
-train_path = os.path.join(datadir, "Training")
-x_train, y_train = load_data_from_folder(train_path, Categories)
+# Load data
+x_train, y_train = load_data_from_folder(os.path.join(datadir, "Training"), Categories)
+x_validation, y_validation = load_data_from_folder(os.path.join(datadir, "Validation"), Categories)
+x_test, y_test = load_data_from_folder(os.path.join(datadir, "Test"), Categories)
 
-# Load validation data
-validation_path = os.path.join(datadir, "Validation")
-x_validation, y_validation = load_data_from_folder(validation_path, Categories)
+# Parameter grid
+param_grid={
+    'C':[0.03,0.1,0.3,0.6,1,3,6,10,30,60,100], 
+    'gamma': [0.0001, 0.0003, 0.006, 0.001, 0.003, 0.006, 0.01, 0.03, 0.06, 0.1, 0.3, 0.6, 1],
+    'kernel': ['linear', 'poly', 'rbf', 'sigmoid']
+}
 
-# Load testing data
-test_path = os.path.join(datadir, "Test")
-x_test, y_test = load_data_from_folder(test_path, Categories)
+param_grid_limited={
+    'C':[0.1,1,10,100], 
+    'gamma': [0.0001, 0.001, 0.01, 0.1, 1],
+    'kernel': ['linear', 'poly', 'rbf', 'sigmoid']
+}
 
-# Grid Search
-# Defining the parameters grid for GridSearchCV
-param_grid={'C':[0.1], 
-            'gamma':[0.0001], 
-            'kernel':['linear']} 
-            # 'kernel':['rbf','poly']} 
-
-# Creating a support vector classifier 
-svc=svm.SVC(probability=True) 
-
-# Creating a model using GridSearchCV with the parameters grid 
-model=GridSearchCV(svc,param_grid, n_jobs=-1)
-
-print("\n     Starting training!")
-start_time = time.time()
-
-# Training the model using the training data 
-model.fit(x_train,y_train)
-
-end_time = time.time()
-training_elapsed_time = end_time - start_time
-print(f"Training finished! Time elapsed in training: {round(training_elapsed_time, 1)} seconds")
-
-# Print the best parameters found by GridSearchCV
-print("Best parameters found:")
-print(model.best_params_)
-
-print("\n     Starting testing!")
-start_time = time.time()
-
-# Testing the model using the testing data 
-y_pred = model.predict(x_test) 
-
-end_time = time.time()
-testing_elapsed_time = end_time - start_time
-print(f"Testing finished! Time elapsed in testing: {round(testing_elapsed_time, 1)} seconds\n")
-
-# Calculating the accuracy of the model 
-accuracy = accuracy_score(y_pred, y_test) 
-
-# Print the accuracy of the model 
-print(f"The model is {accuracy*100}% accurate")
-
-
-report = classification_report(y_test, y_pred, target_names=Categories)
+# Setup
 timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 report_directory = f"reports/{timestamp}"
-os.makedirs(report_directory, exist_ok=True)  # Create the folder if it doesn't exist
-filename = f"{report_directory}/classification_report_{timestamp}.txt"
-with open(filename, "w") as file:
-    file.write(f"Width and heights of the images after resizing: {photo_dimension_after_resizing}px\n")
-    file.write(f"SVM parameters: {model.best_params_}\n")
-    file.write(f"Model run on processor: {cpuinfo.get_cpu_info()['brand_raw']}\n")
-    file.write(f"Time elapsed in training: {round(training_elapsed_time, 1)} seconds\n")
-    file.write(f"Time elapsed in testing: {round(testing_elapsed_time, 1)} seconds\n\n")
-    file.write(report)
-print(f"Classification report saved as: {filename}")
-print("Contents of report:")
+os.makedirs(report_directory, exist_ok=True)
+grid_search_filename = f"{report_directory}/grid_search_{timestamp}.txt"
 
+# Log results to file
+with open(grid_search_filename, "w") as f:
+    f.write(f"Processor used to perform tests: {cpuinfo.get_cpu_info()['brand_raw']}\n")
+    f.write("C\tgamma\tkernel\ttest_accuracy\ttest_f1_weighted\tlearn_time\ttest_time\n")
+
+    best_accuracy = 0
+    best_model = None
+    best_params = {}
+
+    print("\n     Starting grid search on TEST SET")
+    for C, gamma, kernel in itertools.product(param_grid_limited['C'], param_grid_limited['gamma'], param_grid_limited['kernel']):
+        print(f"Training with C={C}, gamma={gamma}, kernel={kernel}...")
+        model = svm.SVC(C=C, gamma=gamma, kernel=kernel, probability=True)
+
+        start_time = time.time()
+        model.fit(x_train, y_train)
+        learn_time = time.time() - start_time
+        start_time = time.time()
+        y_pred = model.predict(x_test)
+        test_time = time.time() - start_time
+
+        acc = accuracy_score(y_test, y_pred)
+        f1 = f1_score(y_test, y_pred, average='weighted')
+
+        if acc > best_accuracy:
+            best_accuracy = acc
+            best_model = model
+            best_params = {"C": C, "gamma": gamma, "kernel": kernel}
+
+        f.write(f"{C}\t{gamma}\t{kernel}\t{acc:.4f}\t{f1:.4f}\t{learn_time:.2f}\t{test_time:.2f}\n")
+
+print(f"Grid search results saved as: {grid_search_filename}")
+print("Best parameters found based on test set:")
+print(best_params)
+
+print("\n     Starting final evaluation with best model")
+start_time = time.time()
+y_pred = best_model.predict(x_test)
+testing_elapsed_time = time.time() - start_time
+accuracy = accuracy_score(y_pred, y_test)
+
+# Save classification report
+report = classification_report(y_test, y_pred, target_names=Categories)
+report_filename = f"{report_directory}/classification_report_{timestamp}.txt"
+with open(report_filename, "w") as file:
+    file.write(f"Width and heights of the images after resizing: {photo_dimension_after_resizing}px\n")
+    file.write(f"SVM parameters: {best_params}\n")
+    file.write(f"Model run on processor: {cpuinfo.get_cpu_info()['brand_raw']}\n")
+    file.write(f"Time elapsed in final test prediction: {round(testing_elapsed_time, 1)} seconds\n\n")
+    file.write(report)
+
+print(f"Classification report saved as: {report_filename}")
+print("Contents of report:")
 print(report)
 
-# Generate confusion matrix
+# Confusion matrix
 cm = confusion_matrix(y_test, y_pred)
-
-# Plot the confusion matrix
 disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=Categories)
 disp.plot(cmap='Greens')
 plt.title("Confusion Matrix")
 plt.tight_layout()
 
-# Save the figure
 conf_matrix_path = f"{report_directory}/confusion_matrix_{timestamp}.png"
 plt.savefig(conf_matrix_path)
-
 plt.show()
