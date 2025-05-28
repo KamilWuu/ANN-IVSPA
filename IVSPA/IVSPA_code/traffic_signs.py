@@ -77,7 +77,7 @@ with open(grid_search_filename, "w") as f:
     best_params = {}
 
     print("\n     Starting grid search on TEST SET")
-    for C, gamma, kernel in itertools.product(param_grid_limited['C'], param_grid_limited['gamma'], param_grid_limited['kernel']):
+    for C, gamma, kernel in itertools.product(param_grid['C'], param_grid['gamma'], param_grid['kernel']):
         print(f"Training with C={C}, gamma={gamma}, kernel={kernel}...")
         model = svm.SVC(C=C, gamma=gamma, kernel=kernel, probability=True)
 
