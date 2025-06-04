@@ -1,11 +1,11 @@
-import pandas as pd 
-import os 
-from skimage.transform import resize 
-from skimage.io import imread 
-import numpy as np 
-import matplotlib.pyplot as plt 
-from sklearn import svm 
+import os
+from skimage.transform import resize
+from skimage.io import imread
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn import svm
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, ConfusionMatrixDisplay, f1_score
+from joblib import Parallel, delayed
 
 import time
 from datetime import datetime
@@ -24,8 +24,8 @@ def get_categories(file_location):
         print(f"Error: The file '{file_location}' was not found.")
         return []
 
-datadir='../IVSPA-database/nowa baza 20 znakow maks 480/database_480_photos/'
-Categories=get_categories("../IVSPA-database/nowa baza 20 znakow maks 480/new_description.txt") 
+datadir = '../IVSPA-database/nowa baza 20 znakow maks 480/database_480_photos/'
+Categories = get_categories("../IVSPA-database/nowa baza 20 znakow maks 480/new_description.txt")
 print("Categories read from description file:")
 print(Categories)
 
@@ -49,17 +49,17 @@ x_validation, y_validation = load_data_from_folder(os.path.join(datadir, "Valida
 x_test, y_test = load_data_from_folder(os.path.join(datadir, "Test"), Categories)
 
 # Parameter grid
-param_grid={
-    'C':[0.03,0.1,0.3,0.6,1,3,6,10,30,60,100], 
-    'gamma': [0.0001, 0.0003, 0.006, 0.001, 0.003, 0.006, 0.01, 0.03, 0.06, 0.1, 0.3, 0.6, 1],
-    'kernel': ['linear', 'poly', 'rbf', 'sigmoid']
-}
-
-param_grid_limited={
-    'C':[0.1,1,10,100], 
+param_grid = {
+    'C': [0.1, 1, 10, 100],
     'gamma': [0.0001, 0.001, 0.01, 0.1, 1],
     'kernel': ['linear', 'poly', 'rbf', 'sigmoid']
 }
+
+# param_grid={
+#     'C':[0.03,0.1,0.3,0.6,1,3,6,10,30,60,100], 
+#     'gamma': [0.0001, 0.0003, 0.006, 0.001, 0.003, 0.006, 0.01, 0.03, 0.06, 0.1, 0.3, 0.6, 1],
+#     'kernel': ['linear', 'poly', 'rbf', 'sigmoid']
+# }
 
 # Setup
 timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -67,41 +67,60 @@ report_directory = f"reports/{timestamp}"
 os.makedirs(report_directory, exist_ok=True)
 grid_search_filename = f"{report_directory}/grid_search_{timestamp}.txt"
 
-# Log results to file
+# Define the function for training and testing
+def train_and_test_model(C, gamma, kernel):
+    print(f"Training with C={C}, gamma={gamma}, kernel={kernel}...")
+    model = svm.SVC(C=C, gamma=gamma, kernel=kernel, probability=True)
+
+    start_time = time.time()
+    model.fit(x_train, y_train)
+    learn_time = time.time() - start_time
+    start_time = time.time()
+    y_pred = model.predict(x_test)
+    test_time = time.time() - start_time
+
+    acc = accuracy_score(y_test, y_pred)
+    f1 = f1_score(y_test, y_pred, average='weighted')
+
+    return {
+        'C': C,
+        'gamma': gamma,
+        'kernel': kernel,
+        'accuracy': acc,
+        'f1': f1,
+        'learn_time': learn_time,
+        'test_time': test_time,
+        'model': model
+    }
+
+# Log header
 with open(grid_search_filename, "w") as f:
     f.write(f"Processor used to perform tests: {cpuinfo.get_cpu_info()['brand_raw']}\n")
     f.write("C,gamma,kernel,test_accuracy,test_f1_weighted,learn_time,test_time\n")
 
-    best_accuracy = 0
-    best_model = None
-    best_params = {}
+print("\n     Starting parallel grid search on TEST SET")
 
-    print("\n     Starting grid search on TEST SET")
-    for C, gamma, kernel in itertools.product(param_grid['C'], param_grid['gamma'], param_grid['kernel']):
-        print(f"Training with C={C}, gamma={gamma}, kernel={kernel}...")
-        model = svm.SVC(C=C, gamma=gamma, kernel=kernel, probability=True)
+# Run grid search in parallel
+results = Parallel(n_jobs=-1)(
+    delayed(train_and_test_model)(C, gamma, kernel)
+    for C, gamma, kernel in itertools.product(param_grid['C'], param_grid['gamma'], param_grid['kernel'])
+)
 
-        start_time = time.time()
-        model.fit(x_train, y_train)
-        learn_time = time.time() - start_time
-        start_time = time.time()
-        y_pred = model.predict(x_test)
-        test_time = time.time() - start_time
+# Save results and find best model
+best_result = max(results, key=lambda r: r['accuracy'])
+best_model = best_result['model']
+best_params = {k: best_result[k] for k in ['C', 'gamma', 'kernel']}
 
-        acc = accuracy_score(y_test, y_pred)
-        f1 = f1_score(y_test, y_pred, average='weighted')
-
-        if acc > best_accuracy:
-            best_accuracy = acc
-            best_model = model
-            best_params = {"C": C, "gamma": gamma, "kernel": kernel}
-
-        f.write(f"{C},{gamma},{kernel},{acc:.4f},{f1:.4f},{learn_time:.2f},{test_time:.2f}\n")
+# Log results to file
+with open(grid_search_filename, "a") as f:
+    for r in results:
+        f.write(f"{r['C']},{r['gamma']},{r['kernel']},{r['accuracy']:.4f},{r['f1']:.4f},{r['learn_time']:.2f},{r['test_time']:.2f}\n")
 
 print(f"Grid search results saved as: {grid_search_filename}")
 print("Best parameters found based on test set:")
 print(best_params)
 
+# Final evaluation
 print("\n     Starting final evaluation with best model")
 start_time = time.time()
 y_pred = best_model.predict(x_test)
