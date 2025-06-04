@@ -70,7 +70,7 @@ grid_search_filename = f"{report_directory}/grid_search_{timestamp}.txt"
 # Log results to file
 with open(grid_search_filename, "w") as f:
     f.write(f"Processor used to perform tests: {cpuinfo.get_cpu_info()['brand_raw']}\n")
-    f.write("C\tgamma\tkernel\ttest_accuracy\ttest_f1_weighted\tlearn_time\ttest_time\n")
+    f.write("C,gamma,kernel,test_accuracy,test_f1_weighted,learn_time,test_time\n")
 
     best_accuracy = 0
     best_model = None
@@ -96,7 +96,7 @@ with open(grid_search_filename, "w") as f:
             best_model = model
             best_params = {"C": C, "gamma": gamma, "kernel": kernel}
 
-        f.write(f"{C}\t{gamma}\t{kernel}\t{acc:.4f}\t{f1:.4f}\t{learn_time:.2f}\t{test_time:.2f}\n")
+        f.write(f"{C},{gamma},{kernel},{acc:.4f},{f1:.4f},{learn_time:.2f},{test_time:.2f}\n")
 
 print(f"Grid search results saved as: {grid_search_filename}")
 print("Best parameters found based on test set:")
