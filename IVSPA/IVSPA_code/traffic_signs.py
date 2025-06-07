@@ -49,17 +49,17 @@ x_validation, y_validation = load_data_from_folder(os.path.join(datadir, "Valida
 x_test, y_test = load_data_from_folder(os.path.join(datadir, "Test"), Categories)
 
 # Parameter grid
-param_grid = {
-    'C': [0.1, 1, 10, 100],
-    'gamma': [0.0001, 0.001, 0.01, 0.1, 1],
-    'kernel': ['linear', 'poly', 'rbf', 'sigmoid']
-}
-
-# param_grid={
-#     'C':[0.03,0.1,0.3,0.6,1,3,6,10,30,60,100], 
-#     'gamma': [0.0001, 0.0003, 0.006, 0.001, 0.003, 0.006, 0.01, 0.03, 0.06, 0.1, 0.3, 0.6, 1],
+# param_grid = {
+#     'C': [0.1, 1, 10, 100],
+#     'gamma': [0.0001, 0.001, 0.01, 0.1, 1],
 #     'kernel': ['linear', 'poly', 'rbf', 'sigmoid']
 # }
+
+param_grid={
+    'C':[0.03,0.1,0.3,0.6,1,3,6,10,30,60,100], 
+    'gamma': [0.0001, 0.0003, 0.006, 0.001, 0.003, 0.006, 0.01, 0.03, 0.06, 0.1, 0.3, 0.6, 1],
+    'kernel': ['linear', 'poly', 'rbf', 'sigmoid']
+}
 
 # Setup
 timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
