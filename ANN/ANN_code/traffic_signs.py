@@ -64,58 +64,87 @@ Dt_c = DataLoader(TensorDataset(xt_c, yt), 32)
 
 # --- Models ---
 class TrafficSignNet(nn.Module):
-    def __init__(self, h1=128,h2=64):
+    def __init__(self, h1=128, h2=64, dropout_prob=0.0, use_bn=False):
         super().__init__()
-        self.fc1 = nn.Linear(image_resize_size*image_resize_size*3,h1)
-        self.fc2 = nn.Linear(h1,h2)
-        self.fc3 = nn.Linear(h2,len(cats))
-    def forward(self,x):
-        x=x.view(-1,image_resize_size*image_resize_size*3)
-        return self.fc3(torch.relu(self.fc2(torch.relu(self.fc1(x)))))
+        self.use_bn = use_bn
+        self.fc1 = nn.Linear(image_resize_size * image_resize_size * 3, h1)
+        self.bn1 = nn.BatchNorm1d(h1) if use_bn else nn.Identity()
+        self.fc2 = nn.Linear(h1, h2)
+        self.bn2 = nn.BatchNorm1d(h2) if use_bn else nn.Identity()
+        self.fc3 = nn.Linear(h2, len(cats))
+        self.dropout = nn.Dropout(dropout_prob)
+
+    def forward(self, x):
+        x = x.view(-1, image_resize_size * image_resize_size * 3)
+        x = self.dropout(torch.relu(self.bn1(self.fc1(x))))
+        x = self.dropout(torch.relu(self.bn2(self.fc2(x))))
+        return self.fc3(x)
 
 class TrafficSignCNN(nn.Module):
-    def __init__(self, c1=32,c2=64,fc=128):
+    def __init__(self, c1=32, c2=64, fc=128, dropout_prob=0.0, use_bn=False):
         super().__init__()
-        self.conv1 = nn.Conv2d(3,c1,3,padding=1)
-        self.pool = nn.MaxPool2d(2,2)
-        self.conv2 = nn.Conv2d(c1,c2,3,padding=1)
-        self.fc1 = nn.Linear(c2*3*3,fc)
-        self.fc2 = nn.Linear(fc,len(cats))
-    def forward(self,x):
-        x=self.pool(torch.relu(self.conv1(x)))
-        x=self.pool(torch.relu(self.conv2(x)))
-        x=x.view(-1,x.size(1)*x.size(2)*x.size(3))
-        return self.fc2(torch.relu(self.fc1(x)))
+        self.use_bn = use_bn
+        self.conv1 = nn.Conv2d(3, c1, 3, padding=1)
+        self.bn1 = nn.BatchNorm2d(c1) if use_bn else nn.Identity()
+        self.pool = nn.MaxPool2d(2, 2)
+        self.conv2 = nn.Conv2d(c1, c2, 3, padding=1)
+        self.bn2 = nn.BatchNorm2d(c2) if use_bn else nn.Identity()
+        self.fc1 = nn.Linear(c2 * 3 * 3, fc)
+        self.fc2 = nn.Linear(fc, len(cats))
+        self.dropout = nn.Dropout(dropout_prob)
+
+    def forward(self, x):
+        x = self.pool(torch.relu(self.bn1(self.conv1(x))))
+        x = self.pool(torch.relu(self.bn2(self.conv2(x))))
+        x = x.view(-1, x.size(1) * x.size(2) * x.size(3))
+        x = self.dropout(torch.relu(self.fc1(x)))
+        return self.fc2(x)
 
 # --- Training & evaluation ---
-def train_model(model, loader, val_loader, lr, epochs=15, patience=3):
-    opt = optim.Adam(model.parameters(), lr=lr)
+def train_model(model, loader, val_loader, lr, epochs=15, patience=3, optimizer='adam'):
+    if optimizer == 'adam':
+        opt = optim.Adam(model.parameters(), lr=lr)
+    elif optimizer == 'sgd':
+        opt = optim.SGD(model.parameters(), lr=lr, momentum=0.9)
+    else:
+        raise ValueError(f"Unsupported optimizer: {optimizer}")
+
     crit = nn.CrossEntropyLoss()
-    best_val=0; stagnant=0
-    history=[]
+    best_val = 0
+    stagnant = 0
+    history = []
+
     for ep in range(epochs):
         model.train()
-        tot_loss=0
-        for Xb,yb in loader:
+        tot_loss = 0
+        for Xb, yb in loader:
             opt.zero_grad()
-            loss=crit(model(Xb), yb)
-            loss.backward(); opt.step()
-            tot_loss+=loss.item()*Xb.size(0)
-        val_acc=0
+            loss = crit(model(Xb), yb)
+            loss.backward()
+            opt.step()
+            tot_loss += loss.item() * Xb.size(0)
+
+        val_acc = 0
         if val_loader:
             model.eval()
-            correct=0; total=0
-            for Xb,yb in val_loader:
+            correct = 0
+            total = 0
+            for Xb, yb in val_loader:
                 pred = model(Xb).argmax(dim=1)
-                correct+= (pred==yb).sum().item(); total+=len(yb)
-            val_acc = correct/total
-            if val_acc>best_val: best_val,stagnant=val_acc,0
-            else: stagnant+=1
-        history.append((tot_loss/len(loader.dataset), val_acc))
-        print(f"Epoch {ep+1}, loss {history[-1][0]:.3f}, val_acc {val_acc:.3f}")
-        if stagnant>=patience:
-            print(f" Early stopping at ep {ep+1}")
+                correct += (pred == yb).sum().item()
+                total += len(yb)
+            val_acc = correct / total
+            if val_acc > best_val:
+                best_val, stagnant = val_acc, 0
+            else:
+                stagnant += 1
+
+        history.append((tot_loss / len(loader.dataset), val_acc))
+        print(f"Epoch {ep + 1}, loss {history[-1][0]:.3f}, val_acc {val_acc:.3f}")
+        if stagnant >= patience:
+            print(f" Early stopping at ep {ep + 1}")
             break
+
     return history
 
 def test_model(model, loader):
@@ -144,16 +173,31 @@ def write_detailed_report(model_info, data_loader, model_type, output_dir):
         f.write(f"Time elapsed in final test prediction: {model_info['params']['test_time']:.1f} seconds\n\n")
         f.write(report)
 
-ann_grid={"lr":[1e-3,5e-4],"h1":[128,256],"h2":[64,128]}
-cnn_grid={"lr":[1e-3,5e-4],"c1":[32,64],"c2":[64,128],"fc":[128,256]}
+ann_grid = {
+    "lr": [1e-3, 5e-4],
+    "h1": [128],
+    "h2": [64],
+    "dropout_prob": [0.0, 0.3],
+    "use_bn": [False, True],
+    "optimizer": ["adam"]
+}
+cnn_grid = {
+    "lr": [1e-3, 5e-4],
+    "c1": [32],
+    "c2": [64],
+    "fc": [128],
+    "dropout_prob": [0.0, 0.3],
+    "use_bn": [False, True],
+    "optimizer": ["adam", "sgd"]
+}
 
 best_ann={'acc':0}
 ann_records=[]
 for p in get_combos(ann_grid):
-    print("\nANN params:",p)
-    m=TrafficSignNet(p['h1'],p['h2'])
-    start_train = time.time()  # NEW
-    history = train_model(m, Dtr, Dv, p['lr'])
+    print("\nANN params:", p)
+    m = TrafficSignNet(p['h1'], p['h2'], p['dropout_prob'], p['use_bn'])
+    start_train = time.time()
+    history = train_model(m, Dtr, Dv, p['lr'], optimizer=p['optimizer'])
     train_time = time.time() - start_train  # NEW
 
     start_test = time.time()  # NEW
@@ -180,10 +224,10 @@ best_ann['acc'], best_ann
 best_cnn={'acc':0}
 cnn_records=[]
 for p in get_combos(cnn_grid):
-    print("\nCNN params:",p)
-    m=TrafficSignCNN(p['c1'],p['c2'],p['fc'])
-    start_train = time.time()  # NEW
-    history = train_model(m, Dtr_c, Dv_c, p['lr'])
+    print("\nCNN params:", p)
+    m = TrafficSignCNN(p['c1'], p['c2'], p['fc'], p['dropout_prob'], p['use_bn'])
+    start_train = time.time()
+    history = train_model(m, Dtr_c, Dv_c, p['lr'], optimizer=p['optimizer'])
     train_time = time.time() - start_train  # NEW
 
     start_test = time.time()  # NEW
