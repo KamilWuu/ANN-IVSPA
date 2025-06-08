@@ -24,7 +24,7 @@ def get_categories(file_location):
         return []
 
 # Set data directory and load categories
-datadir = '../ANN_data/database_1000_photos/'
+datadir = '../ANN_data/100x/'
 Categories = get_categories(datadir + "description.txt")
 print("Categories read from description file:")
 print(Categories)
@@ -122,9 +122,13 @@ class TrafficSignCNN(nn.Module):
         return x
 
 # === Training and Evaluation Functions ===
-def train_model(model, train_loader, criterion, optimizer, num_epochs=10):
+def train_model(model, train_loader, criterion, optimizer, val_loader=None, num_epochs=10, patience=3, name="Model"):
     model.train()
+    best_val_acc = 0.0
+    epochs_without_improvement = 0
+
     for epoch in range(num_epochs):
+        model.train()
         running_loss = 0.0
         for inputs, labels in train_loader:
             optimizer.zero_grad()
@@ -134,7 +138,37 @@ def train_model(model, train_loader, criterion, optimizer, num_epochs=10):
             optimizer.step()
             running_loss += loss.item() * inputs.size(0)
         epoch_loss = running_loss / len(train_loader.dataset)
-        print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {epoch_loss:.4f}")
+
+        val_acc = None
+        if val_loader is not None:
+            model.eval()
+            correct = 0
+            total = 0
+            with torch.no_grad():
+                for val_inputs, val_labels in val_loader:
+                    val_outputs = model(val_inputs)
+                    _, val_predicted = torch.max(val_outputs, 1)
+                    total += val_labels.size(0)
+                    correct += (val_predicted == val_labels).sum().item()
+            val_acc = correct / total
+
+            # Check for improvement
+            if val_acc > best_val_acc:
+                best_val_acc = val_acc
+                epochs_without_improvement = 0
+            else:
+                epochs_without_improvement += 1
+
+        # Print training and validation stats
+        if val_acc is not None:
+            print(f"{name} Epoch [{epoch+1}/{num_epochs}] - Loss: {epoch_loss:.4f}, Val Acc: {val_acc:.4f}")
+        else:
+            print(f"{name} Epoch [{epoch+1}/{num_epochs}] - Loss: {epoch_loss:.4f}")
+
+        # Early stopping condition
+        if epochs_without_improvement >= patience:
+            print(f"Early stopping triggered at epoch {epoch+1} (best val acc: {best_val_acc:.4f})")
+            break
 
 def evaluate_model(model, val_loader, name="Validation"):
     model.eval()
@@ -154,8 +188,8 @@ model = TrafficSignNet()
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-print("\nTraining ANN model...")
-train_model(model, train_loader, criterion, optimizer, num_epochs=10)
+print("\nTraining ANN model with early stopping...")
+train_model(model, train_loader, criterion, optimizer, val_loader=validation_loader, num_epochs=50, patience=3, name="ANN")
 evaluate_model(model, validation_loader, name="ANN Validation")
 evaluate_model(model, test_loader, name="ANN Test")
 
@@ -164,8 +198,8 @@ cnn_model = TrafficSignCNN()
 cnn_criterion = nn.CrossEntropyLoss()
 cnn_optimizer = optim.Adam(cnn_model.parameters(), lr=0.001)
 
-print("\nTraining CNN model...")
-train_model(cnn_model, train_loader_cnn, cnn_criterion, cnn_optimizer, num_epochs=10)
+print("\nTraining CNN model with early stopping...")
+train_model(cnn_model, train_loader_cnn, cnn_criterion, cnn_optimizer, val_loader=validation_loader_cnn, num_epochs=50, patience=3, name="CNN")
 evaluate_model(cnn_model, validation_loader_cnn, name="CNN Validation")
 evaluate_model(cnn_model, test_loader_cnn, name="CNN Test")
 
