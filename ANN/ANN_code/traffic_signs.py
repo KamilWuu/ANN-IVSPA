@@ -1,8 +1,8 @@
-import pandas as pd 
-import os 
-from skimage.transform import resize 
-from skimage.io import imread 
-import numpy as np 
+import pandas as pd
+import os
+from skimage.transform import resize
+from skimage.io import imread
+import numpy as np
 
 import torch
 import torch.nn as nn
@@ -25,7 +25,7 @@ def get_categories(file_location):
 
 # Set data directory and load categories
 datadir = '../ANN_data/database_1000_photos/'
-Categories = get_categories(datadir + "description.txt") 
+Categories = get_categories(datadir + "description.txt")
 print("Categories read from description file:")
 print(Categories)
 
@@ -43,17 +43,15 @@ def load_data_from_folder(path, categories):
                 labels.append(categories.index(i))
     return np.array(data), np.array(labels)
 
-# Load training data
+# Load training, validation, and test data
 train_path = os.path.join(datadir, "Training")
 x_train, y_train = load_data_from_folder(train_path, Categories)
 print("Training set already read")
 
-# Load validation data
 validation_path = os.path.join(datadir, "Validation")
 x_validation, y_validation = load_data_from_folder(validation_path, Categories)
 print("Validation set already read")
 
-# Load testing data
 test_path = os.path.join(datadir, "Test")
 x_test, y_test = load_data_from_folder(test_path, Categories)
 print("Testing set already read")
@@ -66,7 +64,7 @@ y_validation = torch.tensor(y_validation).long()
 x_test = torch.tensor(x_test).float()
 y_test = torch.tensor(y_test).long()
 
-# Create DataLoaders
+# === ANN DataLoaders ===
 train_dataset = TensorDataset(x_train, y_train)
 train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
 
@@ -76,7 +74,21 @@ validation_loader = DataLoader(validation_dataset, batch_size=32)
 test_dataset = TensorDataset(x_test, y_test)
 test_loader = DataLoader(test_dataset, batch_size=32)
 
-# Define ANN model
+# === CNN Input Reshaping and DataLoaders ===
+x_train_cnn = x_train.view(-1, 3, 15, 15)
+x_validation_cnn = x_validation.view(-1, 3, 15, 15)
+x_test_cnn = x_test.view(-1, 3, 15, 15)
+
+train_dataset_cnn = TensorDataset(x_train_cnn, y_train)
+train_loader_cnn = DataLoader(train_dataset_cnn, batch_size=32, shuffle=True)
+
+validation_dataset_cnn = TensorDataset(x_validation_cnn, y_validation)
+validation_loader_cnn = DataLoader(validation_dataset_cnn, batch_size=32)
+
+test_dataset_cnn = TensorDataset(x_test_cnn, y_test)
+test_loader_cnn = DataLoader(test_dataset_cnn, batch_size=32)
+
+# === ANN Model ===
 class TrafficSignNet(nn.Module):
     def __init__(self):
         super(TrafficSignNet, self).__init__()
@@ -91,12 +103,25 @@ class TrafficSignNet(nn.Module):
         x = self.fc3(x)
         return x
 
-# Initialize model, loss function and optimizer
-model = TrafficSignNet()
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
+# === CNN Model ===
+class TrafficSignCNN(nn.Module):
+    def __init__(self):
+        super(TrafficSignCNN, self).__init__()
+        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, padding=1)
+        self.pool = nn.MaxPool2d(2, 2)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
+        self.fc1 = nn.Linear(64 * 3 * 3, 128)
+        self.fc2 = nn.Linear(128, len(Categories))
 
-# Train function
+    def forward(self, x):
+        x = self.pool(torch.relu(self.conv1(x)))  # -> [batch, 32, 7, 7]
+        x = self.pool(torch.relu(self.conv2(x)))  # -> [batch, 64, 3, 3]
+        x = x.view(-1, 64 * 3 * 3)
+        x = torch.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
+
+# === Training and Evaluation Functions ===
 def train_model(model, train_loader, criterion, optimizer, num_epochs=10):
     model.train()
     for epoch in range(num_epochs):
@@ -111,7 +136,6 @@ def train_model(model, train_loader, criterion, optimizer, num_epochs=10):
         epoch_loss = running_loss / len(train_loader.dataset)
         print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {epoch_loss:.4f}")
 
-# Evaluation function
 def evaluate_model(model, val_loader, name="Validation"):
     model.eval()
     correct = 0
@@ -125,7 +149,27 @@ def evaluate_model(model, val_loader, name="Validation"):
     accuracy = correct / total
     print(f"{name} Accuracy: {accuracy:.4f}")
 
-# Run training and evaluation
+# === Run ANN ===
+model = TrafficSignNet()
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+print("\nTraining ANN model...")
 train_model(model, train_loader, criterion, optimizer, num_epochs=10)
-evaluate_model(model, validation_loader, name="Validation")
-evaluate_model(model, test_loader, name="Test")
+evaluate_model(model, validation_loader, name="ANN Validation")
+evaluate_model(model, test_loader, name="ANN Test")
+
+# === Run CNN ===
+cnn_model = TrafficSignCNN()
+cnn_criterion = nn.CrossEntropyLoss()
+cnn_optimizer = optim.Adam(cnn_model.parameters(), lr=0.001)
+
+print("\nTraining CNN model...")
+train_model(cnn_model, train_loader_cnn, cnn_criterion, cnn_optimizer, num_epochs=10)
+evaluate_model(cnn_model, validation_loader_cnn, name="CNN Validation")
+evaluate_model(cnn_model, test_loader_cnn, name="CNN Test")
+
+# === Final Comparison ===
+print("\n==== FINAL ACCURACY COMPARISON ====")
+evaluate_model(model, test_loader, name="ANN Test")
+evaluate_model(cnn_model, test_loader_cnn, name="CNN Test")
