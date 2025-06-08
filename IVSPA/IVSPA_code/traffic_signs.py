@@ -56,9 +56,9 @@ x_test, y_test = load_data_from_folder(os.path.join(datadir, "Test"), Categories
 # }
 
 param_grid={
-    'C':[0.03,0.1,0.3,0.6,1,3,6,10,30,60,100], 
-    'gamma': [0.0001, 0.0003, 0.006, 0.001, 0.003, 0.006, 0.01, 0.03, 0.06, 0.1, 0.3, 0.6, 1],
-    'kernel': ['linear', 'poly', 'rbf', 'sigmoid']
+    'C':np.arange(60, 105, 5), 
+    'gamma': np.arange(0.001, 0.032, 0.002),
+    'kernel': ['rbf']
 }
 
 # Setup

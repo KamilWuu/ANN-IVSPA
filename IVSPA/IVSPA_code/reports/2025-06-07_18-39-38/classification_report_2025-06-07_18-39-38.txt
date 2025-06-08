@@ -1,0 +1,31 @@
+Width and heights of the images after resizing: 20px
+SVM parameters: {'C': np.int64(65), 'gamma': np.float64(0.013000000000000001), 'kernel': 'rbf'}
+Model run on processor: Intel(R) Core(TM) i5-8300H CPU @ 2.30GHz
+Time elapsed in final test prediction: 5.3 seconds
+
+              precision    recall  f1-score   support
+
+           1       0.82      0.94      0.88        72
+           2       0.88      0.81      0.84        72
+           3       0.88      0.90      0.89        72
+           4       0.89      0.93      0.91        72
+           5       0.82      0.83      0.83        72
+           7       0.87      0.92      0.89        72
+           8       0.97      0.88      0.92        72
+           9       0.99      0.96      0.97        72
+          10       0.99      0.96      0.97        72
+          11       0.96      0.99      0.97        72
+          12       1.00      0.99      0.99        72
+          13       0.99      0.94      0.96        72
+          14       0.97      0.99      0.98        72
+          17       0.97      0.94      0.96        72
+          18       0.97      1.00      0.99        72
+          25       0.97      0.96      0.97        72
+          31       1.00      0.96      0.98        72
+          33       0.99      0.96      0.97        72
+          35       0.95      0.99      0.97        72
+          38       0.99      0.99      0.99        72
+
+    accuracy                           0.94      1440
+   macro avg       0.94      0.94      0.94      1440
+weighted avg       0.94      0.94      0.94      1440

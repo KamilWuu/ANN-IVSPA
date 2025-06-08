@@ -4,6 +4,27 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
+def plot_linear_kernel(data):
+    linear_data = data[data['kernel'] == 'linear']
+
+    if linear_data.empty:
+        print("No data available for kernel: linear")
+        return
+
+    # Average accuracy in case multiple gamma values exist for same C
+    grouped = linear_data.groupby('C')['test_accuracy'].mean().reset_index()
+    C_vals = grouped['C'].values
+    acc_vals = grouped['test_accuracy'].values
+
+    plt.figure(figsize=(8, 6))
+    plt.plot(C_vals, acc_vals, marker='o', linestyle='-')
+    plt.xlabel('C')
+    plt.ylabel('Accuracy')
+    plt.title('Accuracy vs C (Linear Kernel)')
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
 def plot_kernel_surface(data, kernel_name):
     kernel_data = data[data['kernel'] == kernel_name]
 
@@ -24,7 +45,7 @@ def plot_kernel_surface(data, kernel_name):
     surf = ax.plot_trisurf(log_C, log_gamma, test_accuracy, cmap='viridis', linewidth=0.2)
     fig.colorbar(surf, ax=ax, shrink=0.5, aspect=5)
 
-    # Prepare unique sorted ticks
+    # Set ticks and labels to actual values
     unique_C = np.sort(np.unique(C_raw))
     unique_gamma = np.sort(np.unique(gamma_raw))
 
@@ -49,7 +70,7 @@ if __name__ == "__main__":
 
     file_path = sys.argv[1]
     try:
-        # Skip the first line (metadata), use second line as header
+        # Skip the first row (CPU info)
         data = pd.read_csv(file_path, skiprows=1)
     except FileNotFoundError:
         print(f"Error: File '{file_path}' not found.")
@@ -60,6 +81,11 @@ if __name__ == "__main__":
         print(f"Error: Data file '{file_path}' does not contain expected columns.")
         sys.exit(1)
 
-    kernels = ['linear', 'poly', 'rbf', 'sigmoid']
-    for kernel in kernels:
-        plot_kernel_surface(data, kernel)
+    available_kernels = data['kernel'].unique()
+    print(f"Kernels found in file: {', '.join(available_kernels)}")
+
+    for kernel in available_kernels:
+        if kernel == 'linear':
+            plot_linear_kernel(data)
+        else:
+            plot_kernel_surface(data, kernel)
