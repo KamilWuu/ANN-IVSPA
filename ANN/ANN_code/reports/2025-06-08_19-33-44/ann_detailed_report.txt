@@ -1,0 +1,21 @@
+Width and heights of the images after resizing: 15px
+ANN parameters: {'lr': 0.001, 'h1': 256, 'h2': 128, 'acc': 0.99, 'train_time': 0.9542574882507324, 'test_time': 0.0029916763305664062}
+Model run on processor: Intel(R) Core(TM) i5-8300H CPU @ 2.30GHz
+Time elapsed in final test prediction: 0.0 seconds
+
+              precision    recall  f1-score   support
+
+           0       1.00      1.00      1.00        10
+           1       1.00      1.00      1.00        10
+           2       1.00      1.00      1.00        10
+           3       1.00      0.90      0.95        10
+           4       1.00      1.00      1.00        10
+           5       1.00      1.00      1.00        10
+           6       0.91      1.00      0.95        10
+           7       1.00      1.00      1.00        10
+           8       1.00      1.00      1.00        10
+           9       1.00      1.00      1.00        10
+
+    accuracy                           0.99       100
+   macro avg       0.99      0.99      0.99       100
+weighted avg       0.99      0.99      0.99       100

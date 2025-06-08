@@ -14,7 +14,9 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 
 import matplotlib.pyplot as plt
-from sklearn.metrics import ConfusionMatrixDisplay
+from sklearn.metrics import ConfusionMatrixDisplay, classification_report
+
+image_resize_size = 15
 
 # --- Data loading ---
 def get_categories(file_location):
@@ -31,7 +33,7 @@ def load_data(path, categories, cnn=False):
         for file in os.listdir(os.path.join(path, c)):
             if file.endswith(".ppm"):
                 img = imread(os.path.join(path, c, file))
-                img = resize(img, (15,15,3))
+                img = resize(img, (image_resize_size,image_resize_size,3))
                 if cnn:
                     X.append(np.transpose(img, (2,0,1)))
                 else:
@@ -64,11 +66,11 @@ Dt_c = DataLoader(TensorDataset(xt_c, yt), 32)
 class TrafficSignNet(nn.Module):
     def __init__(self, h1=128,h2=64):
         super().__init__()
-        self.fc1 = nn.Linear(15*15*3,h1)
+        self.fc1 = nn.Linear(image_resize_size*image_resize_size*3,h1)
         self.fc2 = nn.Linear(h1,h2)
         self.fc3 = nn.Linear(h2,len(cats))
     def forward(self,x):
-        x=x.view(-1,15*15*3)
+        x=x.view(-1,image_resize_size*image_resize_size*3)
         return self.fc3(torch.relu(self.fc2(torch.relu(self.fc1(x)))))
 
 class TrafficSignCNN(nn.Module):
@@ -130,6 +132,18 @@ def test_model(model, loader):
 def get_combos(grid):
     return [dict(zip(grid, vals)) for vals in product(*grid.values())]
 
+# --- Detailed Reports for Best ANN and CNN ---
+def write_detailed_report(model_info, data_loader, model_type, output_dir):
+    acc, preds, gts = test_model(model_info['model'], data_loader)
+    report = classification_report(gts, preds, digits=2)
+    
+    with open(os.path.join(output_dir, f"{model_type}_detailed_report.txt"), "w") as f:
+        f.write(f"Width and heights of the images after resizing: {image_resize_size}px\n")
+        f.write(f"{model_type.upper()} parameters: {model_info['params']}\n")
+        f.write(f"Model run on processor: {cpuinfo.get_cpu_info()['brand_raw']}\n")
+        f.write(f"Time elapsed in final test prediction: {model_info['params']['test_time']:.1f} seconds\n\n")
+        f.write(report)
+
 ann_grid={"lr":[1e-3,5e-4],"h1":[128,256],"h2":[64,128]}
 cnn_grid={"lr":[1e-3,5e-4],"c1":[32,64],"c2":[64,128],"fc":[128,256]}
 
@@ -138,10 +152,19 @@ ann_records=[]
 for p in get_combos(ann_grid):
     print("\nANN params:",p)
     m=TrafficSignNet(p['h1'],p['h2'])
+    start_train = time.time()  # NEW
     history = train_model(m, Dtr, Dv, p['lr'])
+    train_time = time.time() - start_train  # NEW
+
+    start_test = time.time()  # NEW
     acc, _, _ = test_model(m, Dt)
+    test_time = time.time() - start_test  # NEW
+
     print("Test acc %.3f"%acc)
-    p['acc']=acc; ann_records.append((p,history))
+    p['acc'] = acc  # MODIFIED
+    p['train_time'] = train_time  # NEW
+    p['test_time'] = test_time    # NEW
+    ann_records.append((p, history))
     if acc>best_ann['acc']:
         best_ann={
             'params':p,
@@ -159,10 +182,19 @@ cnn_records=[]
 for p in get_combos(cnn_grid):
     print("\nCNN params:",p)
     m=TrafficSignCNN(p['c1'],p['c2'],p['fc'])
+    start_train = time.time()  # NEW
     history = train_model(m, Dtr_c, Dv_c, p['lr'])
+    train_time = time.time() - start_train  # NEW
+
+    start_test = time.time()  # NEW
     acc, _, _ = test_model(m, Dt_c)
+    test_time = time.time() - start_test  # NEW
+
     print("Test acc %.3f"%acc)
-    p['acc']=acc; cnn_records.append((p,history))
+    p['acc'] = acc  # MODIFIED
+    p['train_time'] = train_time  # NEW
+    p['test_time'] = test_time    # NEW
+    cnn_records.append((p, history))
     if acc>best_cnn['acc']:
         best_cnn={
             'params':p,
@@ -184,11 +216,13 @@ os.makedirs(rep_dir, exist_ok=True)
 csv_path = os.path.join(rep_dir, "results.csv")
 with open(csv_path,"w") as f:
     f.write(f"Processor used to perform tests: {cpuinfo.get_cpu_info()['brand_raw']}\n")
-    f.write("model,parameters,accuracy\n")
+    f.write("model,parameters,accuracy,train_time_sec,test_time_sec\n")  # MODIFIED
     for rec in ann_records:
-        f.write(f"ANN,\"{rec[0]}\",{rec[0]['acc']:.4f}\n")
+        p = rec[0]  # NEW
+        f.write(f"ANN,\"{p}\",{p['acc']:.4f},{p['train_time']:.2f},{p['test_time']:.2f}\n")  # MODIFIED
     for rec in cnn_records:
-        f.write(f"CNN,\"{rec[0]}\",{rec[0]['acc']:.4f}\n")
+        p = rec[0]  # NEW
+        f.write(f"CNN,\"{p}\",{p['acc']:.4f},{p['train_time']:.2f},{p['test_time']:.2f}\n")  # MODIFIED
 
 # Plotting
 def plot_history(hist, title, outpath):
@@ -213,5 +247,7 @@ for key,best in [('ann', best_ann), ('cnn', best_cnn)]:
     plt.tight_layout()
     plt.savefig(os.path.join(rep_dir,f"{key}_confusion_matrix.png"))
     plt.close()
+    write_detailed_report(best_ann, Dt, "ann", rep_dir)
+    write_detailed_report(best_cnn, Dt_c, "cnn", rep_dir)
 
 print("Report saved in", rep_dir)
